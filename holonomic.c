@@ -1,6 +1,23 @@
 #include <unistd.h>
 #include <stdio.h>
 
+////////////////////////////////////////////////////////////////////////////////
+/// \copiright ox223252, 2019
+///
+/// This program is free software: you can redistribute it and/or modify it
+///     under the terms of the GNU General Public License published by the Free
+///     Software Foundation, either version 2 of the License, or (at your
+///     option) any later version.
+///
+/// This program is distributed in the hope that it will be useful, but WITHOUT
+///     ANY WARRANTY; without even the implied of MERCHANTABILITY or FITNESS FOR
+///     A PARTICULAR PURPOSE. See the GNU General Public License for more
+///     details.
+///
+/// You should have received a copy of the GNU General Public License along with
+///     this program. If not, see <http://www.gnu.org/licenses/>
+////////////////////////////////////////////////////////////////////////////////
+
 #include "holonomic.h"
 
 // https://eskimon.fr/tuto-arduino-603-a-petits-pas-le-moteur-pas-à-pas#rotation-par-demi-pas
@@ -47,6 +64,7 @@ static void* holonomicMove( void* arg )
 			}
 			else
 			{
+				printf ( "NO FD SET : %6d %#06x\n", r->steps, r->stepper.value );
 			}
 
 			usleep ( 100000 );
@@ -62,13 +80,14 @@ static void* holonomicMove( void* arg )
 	}
 }
 
-int holonomicSet ( robot_t *r, ROBOT_DIR dir, uint32_t steps, bool fullStep )
+uint32_t holonomicSet ( robot_t * const r, const ROBOT_DIR dir, const uint32_t steps, const bool fullStep )
 {
 	if ( r->thread != 0 )
 	{
 		pthread_mutex_lock ( &(r->startMutex) );
 	}
 
+	uint32_t tmp = r->steps;
 	r->steps += steps;
 	r->fullStep = fullStep;
 	r->dir = dir;
@@ -78,6 +97,39 @@ int holonomicSet ( robot_t *r, ROBOT_DIR dir, uint32_t steps, bool fullStep )
 		pthread_mutex_unlock ( &(r->startMutex) );
 		pthread_cond_broadcast ( &(r->startCond) );
 	}
+	return ( tmp );
+}
+
+uint32_t holonomicResetSteps ( robot_t * const r )
+{
+	if ( r->thread != 0 )
+	{
+		pthread_mutex_lock ( &(r->startMutex) );
+	}
+	
+	uint32_t tmp = r->steps = 0;
+
+	if ( r->thread != 0 )
+	{
+		pthread_mutex_unlock ( &(r->startMutex) );
+	}
+	return ( tmp );
+}
+
+uint32_t holonomicGetSteps ( robot_t *r )
+{
+	if ( r->thread != 0 )
+	{
+		pthread_mutex_lock ( &(r->startMutex) );
+	}
+	
+	uint32_t step = r->steps;
+
+	if ( r->thread != 0 )
+	{
+		pthread_mutex_unlock ( &(r->startMutex) );
+	}
+	return ( step );
 }
 
 int holonomicInit ( robot_t *r, bool useThread, pthread_mutex_t *busMutex )
@@ -97,6 +149,10 @@ int holonomicInit ( robot_t *r, bool useThread, pthread_mutex_t *busMutex )
 		r->startMutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 
 		return ( pthread_create( &r->thread, 0, holonomicMove, r ) );
+	}
+	else
+	{
+		r->thread = 0;
 	}
 
 	return ( 0 );
