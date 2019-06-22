@@ -143,16 +143,17 @@ uint32_t holonomicSetDelay ( robot_t * const r, const uint32_t delay );
 
 ///////////////////////////////////////////////////////////////////////////////
 /// \fn int holonomicInit ( robot_t * const r, const bool useThread,
-///     pthread_mutex_t * const busMutex );
+///     pthread_mutex_t * const busMutex, const int fd  );
 /// \param[ in ] r: pointer on robot_t struct \see robot_t
 /// \param[ in ] useThread: flag to determin if the system should use automatic
 ///     thread management
 /// \param[ in ] busMutex: pointer to the communication bus with hardware mutex
+/// \param[ in ] fd: bus file decriptor used to manage robot
 /// \biref function used to set robot_t struct and init thread
 /// \return o if ok else see errno
 ///////////////////////////////////////////////////////////////////////////////
 int holonomicInit ( robot_t * const r, const bool useThread, 
-	pthread_mutex_t * const busMutex );
+	pthread_mutex_t * const busMutex, const int fd  );
 
 ///////////////////////////////////////////////////////////////////////////////
 /// \fn void calcNextStep ( robot_t *r );
