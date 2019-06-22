@@ -152,10 +152,18 @@ uint32_t holonomicSetDelay ( robot_t * const r, const uint32_t delay )
 	return ( tmp );
 }
 
-int holonomicInit ( robot_t *const r, const bool useThread, pthread_mutex_t * const busMutex )
+int holonomicInit ( robot_t *const r, const bool useThread, pthread_mutex_t * const busMutex, const int fd )
 {
 	if ( useThread )
 	{
+		r->steps = 0;
+
+		r->stepper.front.right = 0;
+		r->stepper.front.left = 0;
+		r->stepper.back.right = 0;
+		r->stepper.back.left = 0;
+		r->fd = fd;
+
 		r->busMutex = busMutex;
 		if ( busMutex )
 		{
