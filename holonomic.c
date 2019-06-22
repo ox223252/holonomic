@@ -67,15 +67,18 @@ static void* holonomicMove( void* arg )
 				printf ( "NO FD SET : %6d %#06x\n", r->steps, r->stepper.value );
 			}
 
-			usleep ( 100000 );
+			pthread_mutex_lock ( &(r->private.delayMutex) );
+			uint32_t tmp = r->private.delay;
+			pthread_mutex_unlock ( &(r->private.delayMutex) );
+			usleep ( tmp );
 		}
 		else
 		{
 			pthread_cond_broadcast ( &(r->doneCond) );
 
-			pthread_mutex_lock ( &(r->startMutex) );
-			pthread_cond_wait ( &(r->startCond), &(r->startMutex) );
-			pthread_mutex_unlock ( &(r->startMutex) );
+			pthread_mutex_lock ( &(r->private.startMutex) );
+			pthread_cond_wait ( &(r->private.startCond), &(r->private.startMutex) );
+			pthread_mutex_unlock ( &(r->private.startMutex) );
 		}
 	}
 }
@@ -84,7 +87,7 @@ uint32_t holonomicSet ( robot_t * const r, const ROBOT_DIR dir, const uint32_t s
 {
 	if ( r->thread != 0 )
 	{
-		pthread_mutex_lock ( &(r->startMutex) );
+		pthread_mutex_lock ( &(r->private.startMutex) );
 	}
 
 	uint32_t tmp = r->steps;
@@ -94,8 +97,8 @@ uint32_t holonomicSet ( robot_t * const r, const ROBOT_DIR dir, const uint32_t s
 
 	if ( r->thread != 0 )
 	{
-		pthread_mutex_unlock ( &(r->startMutex) );
-		pthread_cond_broadcast ( &(r->startCond) );
+		pthread_mutex_unlock ( &(r->private.startMutex) );
+		pthread_cond_broadcast ( &(r->private.startCond) );
 	}
 	return ( tmp );
 }
@@ -104,35 +107,52 @@ uint32_t holonomicResetSteps ( robot_t * const r )
 {
 	if ( r->thread != 0 )
 	{
-		pthread_mutex_lock ( &(r->startMutex) );
+		pthread_mutex_lock ( &(r->private.startMutex) );
 	}
 	
 	uint32_t tmp = r->steps = 0;
 
 	if ( r->thread != 0 )
 	{
-		pthread_mutex_unlock ( &(r->startMutex) );
+		pthread_mutex_unlock ( &(r->private.startMutex) );
 	}
 	return ( tmp );
 }
 
-uint32_t holonomicGetSteps ( robot_t *r )
+uint32_t holonomicGetSteps ( robot_t * const r )
 {
 	if ( r->thread != 0 )
 	{
-		pthread_mutex_lock ( &(r->startMutex) );
+		pthread_mutex_lock ( &(r->private.startMutex) );
 	}
 	
 	uint32_t step = r->steps;
 
 	if ( r->thread != 0 )
 	{
-		pthread_mutex_unlock ( &(r->startMutex) );
+		pthread_mutex_unlock ( &(r->private.startMutex) );
 	}
 	return ( step );
 }
 
-int holonomicInit ( robot_t *r, bool useThread, pthread_mutex_t *busMutex )
+uint32_t holonomicSetDelay ( robot_t * const r, const uint32_t delay )
+{
+	if ( r->thread != 0 )
+	{
+		pthread_mutex_lock ( &(r->private.delayMutex) );
+	}
+
+	uint32_t tmp = r->private.delay;
+	r->private.delay = delay;
+
+	if ( r->thread != 0 )
+	{
+		pthread_mutex_unlock ( &(r->private.delayMutex) );
+	}
+	return ( tmp );
+}
+
+int holonomicInit ( robot_t *const r, const bool useThread, pthread_mutex_t * const busMutex )
 {
 	if ( useThread )
 	{
@@ -145,9 +165,11 @@ int holonomicInit ( robot_t *r, bool useThread, pthread_mutex_t *busMutex )
 		r->doneCond = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
 		r->doneMutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 		
-		r->startCond = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
-		r->startMutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-
+		r->private.startCond = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
+		r->private.startMutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+		
+		r->private.delayMutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+		r->private.delay = 100000;
 		return ( pthread_create( &r->thread, 0, holonomicMove, r ) );
 	}
 	else
@@ -159,7 +181,7 @@ int holonomicInit ( robot_t *r, bool useThread, pthread_mutex_t *busMutex )
 }
 
 #pragma GCC diagnostic ignored "-Wswitch"
-void calcNextStep ( robot_t *r )
+void calcNextStep ( robot_t * const r )
 {
 	if ( !r )
 	{

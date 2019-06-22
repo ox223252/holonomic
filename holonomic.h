@@ -54,6 +54,8 @@ typedef struct
 	ROBOT_DIR dir; ///< \see ROBOT_DIR move dir
 	uint32_t steps; ///< nb steps need to be done
 	bool fullStep; ///< half step or full step used ?
+
+
 	struct
 	{
 		uint16_t value; ///< value where stepper motor control is stored
@@ -74,8 +76,15 @@ typedef struct
 		/// reach zero
 	pthread_mutex_t doneMutex; ///< mutex associated with doneCond
 
-	pthread_cond_t startCond; ///< not used outside of lib
-	pthread_mutex_t startMutex; ///< only for internal purposes
+	struct
+	{ ///< user should not use these var
+		pthread_cond_t startCond; ///< not used outside of lib
+		pthread_mutex_t startMutex; ///< only for internal purposes
+
+		uint32_t delay; ///< time between to steps (µs)
+		pthread_mutex_t delayMutex; ///< only for internal purposes
+	}
+	private;
 
 	pthread_mutex_t *busMutex; ///< mutex used to avoid multiple access to
 		/// same hardware bus.
@@ -84,9 +93,10 @@ typedef struct
 robot_t;
 
 ///////////////////////////////////////////////////////////////////////////////
-/// \note holonomicResetSteps, holonomicGetSteps, holonomicIni and holonomicSet
-///     function should be used when you set threaded mode, else you can 
-///     directly use calcNextStep() and its result stored in r->steppe.value
+/// \note holonomicResetSteps, holonomicGetSteps, holonomicIni, holonomicSet
+///     and holonomicSetDelay function should be used when you set threaded 
+///     mode, else you can directly use calcNextStep() and its result stored in
+///     r->steppe.value
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -104,7 +114,7 @@ uint32_t holonomicSet ( robot_t * const r, const ROBOT_DIR dir,
 	const uint32_t steps, const bool fullStep );
 
 ///////////////////////////////////////////////////////////////////////////////
-/// \fn void holonomicResetSteps ( robot_t *r );
+/// \fn void holonomicResetSteps ( robot_t * const r );
 /// \param[ in ] r: pointer on robot_t struct \see robot_t
 /// \biref this function should be used to reset step counter
 /// \note thread safe
@@ -113,13 +123,23 @@ uint32_t holonomicSet ( robot_t * const r, const ROBOT_DIR dir,
 uint32_t holonomicResetSteps ( robot_t * const r );
 
 ///////////////////////////////////////////////////////////////////////////////
-/// \fn uint32_t holonomicGetSteps ( robot_t *r );
+/// \fn uint32_t holonomicGetSteps ( robot_t * const r );
 /// \param[ in ] r: pointer on robot_t struct \see robot_t
 /// \biref this function should be used to get step counter
 /// \note thread safe
-/// \return hte steps counter value
+/// \return thee steps counter value
 ///////////////////////////////////////////////////////////////////////////////
-uint32_t holonomicGetSteps ( robot_t *r );
+uint32_t holonomicGetSteps ( robot_t * const r );
+
+///////////////////////////////////////////////////////////////////////////////
+/// \fn uint32_t holonomicSetDelay ( robot_t * const r, const uint32_t delay );
+/// \param[ in ] r: pointer on robot_t struct \see robot_t
+/// \param[ in ] delay: time between two steps
+/// \biref this function allow to change timming two step in threaded mode
+/// \note thread safe
+/// \return the previous delay
+///////////////////////////////////////////////////////////////////////////////
+uint32_t holonomicSetDelay ( robot_t * const r, const uint32_t delay );
 
 ///////////////////////////////////////////////////////////////////////////////
 /// \fn int holonomicInit ( robot_t * const r, const bool useThread,
@@ -139,6 +159,6 @@ int holonomicInit ( robot_t * const r, const bool useThread,
 /// \param[ in ] r: pointer on robot_t struct \see robot_t
 /// \biref fucntion used to calc the next step for your step motor
 ///////////////////////////////////////////////////////////////////////////////
-void calcNextStep ( robot_t *r );
+void calcNextStep ( robot_t * const r );
 
 #endif
