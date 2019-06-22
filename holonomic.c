@@ -3,6 +3,8 @@
 
 #include "holonomic.h"
 
+#include "../mcp23017/mcp2307.h"
+
 // https://eskimon.fr/tuto-arduino-603-a-petits-pas-le-moteur-pas-à-pas#rotation-par-demi-pas
 static const uint8_t stepValues[ ] = {
 			// Etape     A1    B1    A2    B2
@@ -35,14 +37,24 @@ static void* holonomicMove( void* arg )
 					pthread_mutex_lock ( r->busMutex );
 					pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, NULL );
 					// secure write on bus
-					printf ( "NO BUS SET : %6d %#06x\n", r->steps, r->stepper.value );
+					#ifdef __MCP23017_H__
+						portSet ( fd, 'A', r->stepper.value & 0xff );
+						portSet ( fd, 'B', ( r->stepper.value >> 8 ) & 0xff );
+					#else
+						printf ( "NO BUS SET : %6d %#06x\n", r->steps, r->stepper.value );
+					#endif
 					pthread_mutex_unlock ( r->busMutex );
 					pthread_setcancelstate ( PTHREAD_CANCEL_ENABLE, NULL );
 				}
 				else
 				{
 					// unsecured write on bus
-					printf ( "NO BUS SET : %6d %#06x\n", r->steps, r->stepper.value );
+					#ifdef __MCP23017_H__
+						portSet ( fd, 'A', r->stepper.value & 0xff );
+						portSet ( fd, 'B', ( r->stepper.value >> 8 ) & 0xff );
+					#else
+						printf ( "NO BUS SET : %6d %#06x\n", r->steps, r->stepper.value );
+					#endif
 				}
 			}
 			else
@@ -82,6 +94,35 @@ int holonomicSet ( robot_t *r, ROBOT_DIR dir, uint32_t steps, bool fullStep )
 
 int holonomicInit ( robot_t *r, bool useThread, pthread_mutex_t *busMutex )
 {
+	if ( r->fd )
+	{
+		#ifdef __MCP23017_H__
+			gpioSetDir ( r->fd, 'A', 0, OUTPUT );
+			gpioSetDir ( r->fd, 'A', 1, OUTPUT );
+			gpioSetDir ( r->fd, 'A', 2, OUTPUT );
+			gpioSetDir ( r->fd, 'A', 3, OUTPUT );
+			gpioSetDir ( r->fd, 'A', 4, OUTPUT );
+			gpioSetDir ( r->fd, 'A', 5, OUTPUT );
+			gpioSetDir ( r->fd, 'A', 6, OUTPUT );
+			gpioSetDir ( r->fd, 'A', 7, OUTPUT );
+
+			gpioSetDir ( r->fd, 'B', 0, OUTPUT );
+			gpioSetDir ( r->fd, 'B', 1, OUTPUT );
+			gpioSetDir ( r->fd, 'B', 2, OUTPUT );
+			gpioSetDir ( r->fd, 'B', 3, OUTPUT );
+			gpioSetDir ( r->fd, 'B', 4, OUTPUT );
+			gpioSetDir ( r->fd, 'B', 5, OUTPUT );
+			gpioSetDir ( r->fd, 'B', 6, OUTPUT );
+			gpioSetDir ( r->fd, 'B', 7, OUTPUT );
+		#else
+			printf ( "NO BUS SET\n" );
+		#endif
+	}
+	else
+	{
+
+	}
+
 	if ( useThread )
 	{
 		r->busMutex = busMutex;
