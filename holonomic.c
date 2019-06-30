@@ -36,6 +36,7 @@ static const uint8_t stepValues[ ] = {
 static void* holonomicMove( void* arg )
 {
 	robot_t *r = arg;
+	
 	while ( 1 )
 	{
 		// wait cond sart
@@ -81,6 +82,7 @@ static void* holonomicMove( void* arg )
 			pthread_mutex_unlock ( &(r->private.startMutex) );
 		}
 	}
+	return ( NULL );
 }
 
 uint32_t holonomicSet ( robot_t * const r, const ROBOT_DIR dir, const uint32_t steps, const bool fullStep )
@@ -154,6 +156,11 @@ uint32_t holonomicSetDelay ( robot_t * const r, const uint32_t delay )
 
 int holonomicInit ( robot_t *const r, const bool useThread, pthread_mutex_t * const busMutex, const int fd )
 {
+	if ( !r )
+	{
+		return ( __LINE__ );
+	}
+
 	if ( useThread )
 	{
 		r->steps = 0;
@@ -294,3 +301,10 @@ void calcNextStep ( robot_t * const r )
 		( stepValues[ r->stepper.back.left ] << 12 );
 }
 #pragma GCC diagnostic push
+
+void holonomicWait ( robot_t * const r )
+{
+	pthread_mutex_lock ( &(r->doneMutex) );
+	pthread_cond_wait ( &(r->doneCond), &(r->doneMutex) );
+	pthread_mutex_unlock ( &(r->doneMutex) );
+}
